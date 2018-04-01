@@ -1,0 +1,60 @@
+#include <Servo.h>
+
+Servo myservo1;
+Servo myservo2;
+
+char incomingByte = 0;
+int degree1 = 85;
+int degree2 = 91.5;
+
+void setup()
+{
+  Serial.begin(9600);
+  myservo1.attach(9);
+  myservo2.attach(10);
+  myservo1.write(degree1);
+  myservo2.write(degree2);
+  Serial.print("Degree 1:");
+  Serial.println(degree1);
+  Serial.print("Degree 2:");
+  Serial.println(degree2);
+  Serial.println("READY");
+}
+
+void loop()
+{
+  if (Serial.available() > 0) {
+    incomingByte = Serial.read();
+    Serial.print("Reading: ");
+    Serial.println(incomingByte);
+    if (incomingByte == '1') {
+      Serial.print("Position 1 \n");
+      int i = 0;
+      while(i < 45){
+        degree1 = --degree1;
+        degree2 = ++degree2;
+        Serial.println(degree1);
+        Serial.println(degree2);
+        delay(100);
+        i++;
+      }
+      myservo1.write(degree1);
+      myservo2.write(degree2);
+    }
+    if (incomingByte == '0') {
+      Serial.print("Position 0\n");
+      int i = 0;
+      while(i < 45){
+        degree1 = ++degree1;
+        degree2 = --degree2;
+        Serial.println(degree1);
+        Serial.println(degree2);
+        delay(100);
+        i++;
+      }
+      myservo1.write(degree1);
+      myservo2.write(degree2);
+    }
+    Serial.println("End");
+  }
+}
