@@ -283,7 +283,7 @@ void LH_ENCODER(){
  *  to work with
  */
  void forward(long distance){
-    long x = (distance) / (3.75 * pi);                                        // amount of ticks to travel for that distance
+    long x = (distance) / (3.75 * 3.14);                                        // amount of ticks to travel for that distance
 
     while(count_tot_rh < x){
       lastMilli = millis();
