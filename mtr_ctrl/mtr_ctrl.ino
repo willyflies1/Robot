@@ -146,6 +146,7 @@ void loop(){
 
   //getparam();
 
+
   // GO SET DISTANCE pi*d = circ = distance/revolution ==> 3.75" * pi = 11.77"
   while(count_tot_rh < 663){
   if((millis()-lastMilli) >= LOOPTIME)   {                                    // enter tmed loop
@@ -269,6 +270,32 @@ void LH_ENCODER(){
   count_lh++;
   count_tot_lh++;
 }
+
+
+
+/*****************************************************************************************************/
+/*************************************FWD BOTH MTR****************************************************/
+/*****************************************************************************************************/
+
+/*
+ *  Moves the robot forward for 'x' amount of distance in inches. 
+ *  Takes that distance and turns it into ticks for the motor controller
+ *  to work with
+ */
+ void forward(long distance){
+    long x = (distance) / (3.75 * pi);                                        // amount of ticks to travel for that distance
+
+    while(count_tot_rh < x){
+      lastMilli = millis();
+      getMotorData();                                                         // calculate speed, volts and Amps
+      PWM_val_rh = updatePid(PWM_val_rh, speed_req, speed_act_rh);            // compute PWM value
+      PWM_val_lh = updatePid(PWM_val_lh, speed_req, speed_act_lh);
+      
+      analogWrite(enA_rh, PWM_val_rh); 
+      analogWrite(enB_lh, PWM_val_lh);// send PWM to motor
+    }
+  }
+
 
 /*****************************************************************************************************/
 /*************************************FWD MTR RH CTRL*************************************************/
