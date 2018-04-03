@@ -6,12 +6,12 @@
 
 // RGB SENSOR
 /*
-#define rgb_led   14
-#define XXX
-#define XXXX
-#define XXXXX
-#define XXXXXX
-#define XXXXXXX
+  #define rgb_led   14
+  #define XXX
+  #define XXXX
+  #define XXXXX
+  #define XXXXXX
+  #define XXXXXXX
 */
 
 // USRF SENSORS
@@ -36,8 +36,8 @@
 #define in3_lh    26
 #define in4_lh    24
 #define enB_lh    4
-#define chA_lh    45  
-#define chB_lh    41  
+#define chA_lh    45
+#define chB_lh    41
 
 // GENERAL I/O
 #define ir_in     32
@@ -58,7 +58,7 @@
 /* VARIABLES */
 #define LOOPTIME        10                     // PID loop time
 
-unsigned long lastMilli = 0;                    // loop timing 
+unsigned long lastMilli = 0;                    // loop timing
 unsigned long lastMilliPrint = 0;               // loop timing
 int speed_req = 75;                             // speed (Set Point)
 int speed_act_rh = 0;                              // speed (actual value)
@@ -73,18 +73,18 @@ volatile long count_tot_lh = 0;
 float Kp =   .5;                                // PID proportional control Gain
 float Kd =    .25;                                // PID Derivitave control gain
 
-int one,two,three,four,five,average;
+int one, two, three, four, five, average;
 
 int button_state = 0;
 
 void setup() {
-  
+
   // BUTTON, LED, IR, & BATTERY INPUT
   pinMode(bat_in, INPUT);
   pinMode(ir_in, INPUT);
   pinMode(button, INPUT_PULLUP);
   pinMode(led_out, OUTPUT);
-  
+
   // MTR_CTRL
   pinMode(in1_rh, OUTPUT);
   pinMode(in2_rh, OUTPUT);
@@ -108,7 +108,7 @@ void setup() {
   /* MOTOR ENCODER INTERRUPT DEFINITIONS */
   //attachInterrupt(chA_rh, RH_ENCODER, FALLING);
   //attachInterrupt(chA_lh, LH_ENCODER, FALLING);
-  
+
   // USRF SENSORS
   pinMode(fr_trig, OUTPUT);
   pinMode(fr_echo, INPUT);
@@ -120,7 +120,7 @@ void setup() {
   pinMode(rh_echo, INPUT);
 
   // RGB SENSOR
-  
+
   // 7_SEGMENT DISPLAY
   pinMode(segA, OUTPUT);
   pinMode(segB, OUTPUT);
@@ -134,7 +134,7 @@ void setup() {
   // SERIAL DATA
   Serial.begin(115600);
 
-  
+
   //forward_rh();                                   // Not sure the reason for initializing the motors to begin moving
   //forward_lh();                                   // before loop starts???
 }
@@ -142,13 +142,13 @@ void setup() {
 
 
 /**********************
- *     FUNCTIONS      *
+       FUNCTIONS
  **********************/
 
 /*** LOOP ***/
 void loop() {
   // put your main code here, to run repeatedly:
-  
+
 }
 //-----------------------------------------------------------------------
 //-------------------------FUNCTION--DECLARATIONS------------------------
@@ -157,12 +157,12 @@ void loop() {
 //-------------------------INTERUPTS--FOR--MOTOR--ENCODERS---------------
 
 
-void RH_ENCODER(){
+void RH_ENCODER() {
   count_rh++;
   count_tot_rh++;
 }
 
-void LH_ENCODER(){
+void LH_ENCODER() {
   count_lh++;
   count_tot_lh++;
 }
@@ -176,13 +176,13 @@ void LH_ENCODER(){
 
 int updatePid(int command, int targetValue, int currentValue)   {             // compute PWM value
   float pidTerm = 0;                                                            // PID correction
-  int error=0;                                  
-  static int last_error=0;                             
-    
-  error = abs(targetValue) - abs(currentValue); 
-  pidTerm = (Kp * error) + (Kd * (error - last_error));                            
+  int error = 0;
+  static int last_error = 0;
+
+  error = abs(targetValue) - abs(currentValue);
+  pidTerm = (Kp * error) + (Kd * (error - last_error));
   last_error = error;
- return constrain(command + int(pidTerm), 0, 255);
+  return constrain(command + int(pidTerm), 0, 200);
 }
 
 //----------------------------GET--MOTOR--DATA---------------------------
@@ -190,34 +190,34 @@ int updatePid(int command, int targetValue, int currentValue)   {             //
 void getMotorData()  {                                                        // calculate speed
   static long countAnt_rh = 0;                                                   // last count
   static long countAnt_lh = 0;
-  
-  speed_act_rh = ((count_rh - countAnt_rh)*(60*(1000/LOOPTIME)))/(13*51);          // 13 pulses X 51 gear ratio = 663 counts per output shaft rev
-  speed_act_lh = ((count_lh - countAnt_lh)*(60*(1000/LOOPTIME)))/(13*51);
-  countAnt_rh = count_rh; 
-  countAnt_lh = count_lh;                 
+
+  speed_act_rh = ((count_rh - countAnt_rh) * (60 * (1000 / LOOPTIME))) / (13 * 51); // 13 pulses X 51 gear ratio = 663 counts per output shaft rev
+  speed_act_lh = ((count_lh - countAnt_lh) * (60 * (1000 / LOOPTIME))) / (13 * 51);
+  countAnt_rh = count_rh;
+  countAnt_lh = count_lh;
 }
 
 //------------------------------GET--PARAM--------------------------------
 
-void getparam(){
+void getparam() {
   char param, cmd;
 
-  if(!Serial.available()) return;
+  if (!Serial.available()) return;
   delay(10);
   param = Serial.read();
-  if(!Serial.available()) return;
+  if (!Serial.available()) return;
   cmd = Serial.read();
   Serial.flush();
-  switch(param)
+  switch (param)
   {
     case 'r':
-      if(cmd == '+'){
+      if (cmd == '+') {
         speed_req += 20;
-        if(speed_req > 110) speed_req = 110;  
+        if (speed_req > 110) speed_req = 110;
       }
-      if(cmd == '-'){
+      if (cmd == '-') {
         speed_req -= 20;
-        if(speed_req < 0) speed_req = 0;
+        if (speed_req < 0) speed_req = 0;
       }
       break;
     default:
@@ -226,39 +226,52 @@ void getparam(){
 }
 //--------------------------------FORWARD--------------------------------
 /*
- *  Moves the robot forward for 'x' amount of distance in inches. 
- *  Takes that distance and turns it into ticks for the motor controller
- *  to work with
- */
-void forward(long distance){
-    long x = (distance) / (3.75 * 3.14);                                        // amount of ticks to travel for that distance
+    Moves the robot forward for 'x' amount of distance in inches.
+    Takes that distance and turns it into ticks for the motor controller
+    to work with
+*/
+void forward(float distance) {
+  float x = (distance * 663) / (3.75 * 3.1416);                                        // amount of ticks to travel for that distance
+  int y = (int) x;
+  brake_lh();
+  brake_rh();
+  delay(100);
 
-    while(count_tot_rh < x){
-      lastMilli = millis();
-      getMotorData();                                                         // calculate speed, volts and Amps
-      PWM_val_rh = updatePid(PWM_val_rh, speed_req, speed_act_rh);            // compute PWM value
-      PWM_val_lh = updatePid(PWM_val_lh, speed_req, speed_act_lh);
-      
-      analogWrite(enA_rh, PWM_val_rh); 
-      analogWrite(enB_lh, PWM_val_lh);// send PWM to motor
-    }
+  forward_rh();                                                             // move robot forward
+  forward_lh();
+
+  while (count_tot_rh < y) {
+    lastMilli = millis();
+    getMotorData();                                                         // calculate speed, volts and Amps
+    PWM_val_rh = updatePid(PWM_val_rh, speed_req, speed_act_rh);            // compute PWM value
+    PWM_val_lh = updatePid(PWM_val_lh, speed_req, speed_act_lh);
+
+    analogWrite(enA_rh, PWM_val_rh);
+    analogWrite(enB_lh, PWM_val_lh);// send PWM to motor
+  }
+
+  brake_lh();
+  brake_rh();
+  delay(100);
+  count_tot_lh = 0;                                                         // reset the count for the motors
+  count_tot_rh = 0;
 }
 
 
 /*
- * Right motor forward
- */
-void forward_rh(){
-  digitalWrite(in1_rh,HIGH); 
-  digitalWrite(in2_rh,LOW);  
+   Right motor forward
+*/
+void forward_rh() {
+  digitalWrite(in1_rh, HIGH);
+  digitalWrite(in2_rh, LOW);
   //analogWrite(enA_rh, cmd);
   //digitalWrite(enA_rh,HIGH); //FULL SPEED @ HIGH==> use PWM for control
 }
 
 /*
- * Left Motor forward
- */
-void forward_lh(){
+   Left Motor forward
+*/
+void forward_lh() {
   digitalWrite(in3_lh, HIGH);
   digitalWrite(in4_lh, LOW);
   //analogWrite(enB_lh, cmd);
@@ -268,9 +281,41 @@ void forward_lh(){
 //--------------------------------REVERSE--------------------------------
 
 /*
- * Left motor Reverse
- */
-void reverse_lh(){
+      Moves the robot reverse for 'x' amount of distance in inches.
+      Takes that distance and turns it into ticks for the motor controller
+      to work with
+*/
+void reverse(float distance) {
+  float x = (distance * 663) / (3.75 * 3.1416);                                        // amount of ticks to travel for that distance
+  int y = (int) x;
+  brake_lh();
+  brake_rh();
+  delay(100);
+
+  reverse_lh();                                                             // move robot forward
+  reverse_rh();
+
+  while (count_tot_rh < y) {
+    lastMilli = millis();
+    getMotorData();                                                         // calculate speed, volts and Amps
+    PWM_val_rh = updatePid(PWM_val_rh, speed_req, speed_act_rh);            // compute PWM value
+    PWM_val_lh = updatePid(PWM_val_lh, speed_req, speed_act_lh);
+
+    analogWrite(enA_rh, PWM_val_rh);
+    analogWrite(enB_lh, PWM_val_lh);// send PWM to motor
+  }
+
+  brake_lh();
+  brake_rh();
+  delay(100);
+  count_tot_lh = 0;                                                         // reset the count for the motors
+  count_tot_rh = 0;
+}
+
+/*
+   Left motor Reverse
+*/
+void reverse_lh() {
   digitalWrite(in3_lh, LOW);
   digitalWrite(in4_lh, HIGH);
   //analogWrite(enB_lh, cmd);
@@ -278,30 +323,97 @@ void reverse_lh(){
 }
 
 /*
- * Right motor Reverse
- */
-void reverse_rh(){
+   Right motor Reverse
+*/
+void reverse_rh() {
   digitalWrite(in1_rh, LOW);
   digitalWrite(in2_rh, HIGH);
   //analogWrite(enA_rh, cmd);
   //digitalWrite(enA_rh, HIGH); //FULL SPEED @ HIGH==> use PWM for control
 }
 
+//----------------------------------TURNING-----------------------------
+
+/*
+     turns the robot 90 degrees in the direction indicated
+*/
+void turn(String direction) {
+  if (direction == "left") {
+    reverse_lh();
+    forward_rh();
+  } else if (direction == "right") {
+    forward_lh();
+    reverse_rh();
+  }
+
+  speed_req = 30;
+  // 90* turn
+  while (count_tot_rh < 660 && count_tot_lh < 660) {
+    if ((millis() - lastMilli) >= LOOPTIME)   {                                 // enter tmed loop
+      lastMilli = millis();
+      getMotorData();                                                           // calculate speed, volts and Amps
+      PWM_val_rh = updatePid(PWM_val_rh, speed_req, speed_act_rh);                        // compute PWM value
+      PWM_val_lh = updatePid(PWM_val_lh, speed_req, speed_act_lh);
+      analogWrite(enA_rh, PWM_val_rh);
+      analogWrite(enB_lh, PWM_val_lh);// send PWM to motor
+    }
+  }
+  speed_req = 50;
+  brake_lh();
+  brake_rh();
+  delay(100);
+  Serial.print("count_tot_lh: ");     Serial.println(count_tot_lh);
+  Serial.print("count_tot_rh: ");     Serial.println(count_tot_rh);
+  count_tot_rh = 0;
+  count_tot_lh = 0;
+}
+
+/*
+* Turns the robot around 180 degrees clockwise
+*/
+void turnAround() {
+  brake_lh();                                                               // make sure robot is at stop
+  brake_rh();
+  delay(100);
+  reverse_rh();                                                             // turn 180 degrees to the right
+  forward_lh();
+  speed_req = 30;
+  // 180* turn
+  while (count_tot_rh < 1320 && count_tot_lh < 1320) {
+    if ((millis() - lastMilli) >= LOOPTIME)   {                                 // enter tmed loop
+      lastMilli = millis();
+      getMotorData();                                                           // calculate speed, volts and Amps
+      PWM_val_rh = updatePid(PWM_val_rh, speed_req, speed_act_rh);                        // compute PWM value
+      PWM_val_lh = updatePid(PWM_val_lh, speed_req, speed_act_lh);
+      analogWrite(enA_rh, PWM_val_rh);
+      analogWrite(enB_lh, PWM_val_lh);// send PWM to motor
+    }
+  }
+  speed_req = 50;
+  brake_lh();
+  brake_rh();
+  delay(100);
+  Serial.print("count_tot_lh: ");     Serial.println(count_tot_lh);
+  Serial.print("count_tot_rh: ");     Serial.println(count_tot_rh);
+  count_tot_rh = 0;
+  count_tot_lh = 0;
+}
+
 //----------------------------------BRAKE--------------------------------
 
 /*
- * Left motor brake
- */
-void brake_lh(){
+   Left motor brake
+*/
+void brake_lh() {
   digitalWrite(in3_lh, LOW);
   digitalWrite(in4_lh, LOW);
   digitalWrite(enB_lh, LOW);
 }
 
 /*
- * Right motor brake
- */
-void brake_rh(){
+   Right motor brake
+*/
+void brake_rh() {
   digitalWrite(in1_rh, LOW);
   digitalWrite(in2_rh, LOW);
   digitalWrite(enA_rh, LOW);
@@ -312,17 +424,17 @@ void brake_rh(){
 //-----------------------------------------------------------------------
 /*** IR ***/
 // Read in the IR sensor
-int readIR(){
+int readIR() {
 }
 
 // Display IR reading on 7 segment
-void displaySevenSeg(){
+void displaySevenSeg() {
 }
 //-----------------------------------------------------------------------
 //-------------------------------RGB--FUNCTIONS--------------------------
 //-----------------------------------------------------------------------
 // Detect green LED
-boolean detectGreen(){
+boolean detectGreen() {
 }
 
 //-----------------------------------------------------------------------
@@ -330,14 +442,14 @@ boolean detectGreen(){
 //-----------------------------------------------------------------------
 
 // Lift the scoop up
-void liftScoop(int degree){
+void liftScoop(int degree) {
   logging("ACTION", "Scoop Lifting");
-//  myservo1.write(degree);                                               // No servo object created yet
-//  myservo2.write(degree);
+  //  myservo1.write(degree);                                               // No servo object created yet
+  //  myservo2.write(degree);
 }
 
 // Lower the scoop down
-void lowerScoop(int degree){
+void lowerScoop(int degree) {
   logging("ACTION", "Scoop Lowering");
   //myservo1.write(degree);                                               // No servo object created yet
   //myservo2.write(degree);
@@ -347,12 +459,12 @@ void lowerScoop(int degree){
 //------------------------------FLAG--FUNCTIONS--------------------------
 //-----------------------------------------------------------------------
 // Turn the flag
-void turnFlag(int distance){
+void turnFlag(int distance) {
 }
 
 /*** OTHER ***/
 // logging
-void logging(String type, String message){
+void logging(String type, String message) {
   Serial.print(type);
   Serial.print("=>");
   Serial.println(message);
@@ -362,17 +474,17 @@ void logging(String type, String message){
 //------------------------ULTRASONIC--SENSOR--FUNCTIONS------------------
 //-----------------------------------------------------------------------
 /**
- * Gets distance from the HC-SR04
- * 
- * operating voltage:   5V DC
- * Operating current:   15mA
- * Measure Angle:       15(degrees)
- * Ranging Distance:    2cm - 4m
- */
-int distanceInCm(int trigPin,int echoPin){
+   Gets distance from the HC-SR04
+
+   operating voltage:   5V DC
+   Operating current:   15mA
+   Measure Angle:       15(degrees)
+   Ranging Distance:    2cm - 4m
+*/
+int distanceInCm(int trigPin, int echoPin) {
   int duration, answer;
-//  pinMode(trigPin, OUTPUT);
-//  pinMode(echoPin, INPUT);
+  //  pinMode(trigPin, OUTPUT);
+  //  pinMode(echoPin, INPUT);
   // reset the sensor
   digitalWrite(trigPin, LOW);
   delayMicroseconds(2);
@@ -384,24 +496,24 @@ int distanceInCm(int trigPin,int echoPin){
 
   //set echo pin to receive
   duration = pulseIn(echoPin, HIGH);
-  answer = duration*0.034/2;
+  answer = duration * 0.034 / 2;
 
   return answer;
 }
 
 //-----------------------------------------------------------------------
 /**
- * Gets distance from the HC-SR04
- * 
- * operating voltage:   5V DC
- * Operating current:   15mA
- * Measure Angle:       15(degrees)
- * Ranging Distance:    2cm - 4m
- */
-int distanceInInches(int trigPin,int echoPin){
+   Gets distance from the HC-SR04
+
+   operating voltage:   5V DC
+   Operating current:   15mA
+   Measure Angle:       15(degrees)
+   Ranging Distance:    2cm - 4m
+*/
+int distanceInInches(int trigPin, int echoPin) {
   int duration, answer;
-//  pinMode(trigPin, OUTPUT);
-//  pinMode(echoPin, INPUT);
+  //  pinMode(trigPin, OUTPUT);
+  //  pinMode(echoPin, INPUT);
   // reset the sensor
   digitalWrite(trigPin, LOW);
   delayMicroseconds(2);
@@ -413,7 +525,7 @@ int distanceInInches(int trigPin,int echoPin){
 
   //set echo pin to receive
   duration = pulseIn(echoPin, HIGH);
-  answer = duration*0.034/2;
+  answer = duration * 0.034 / 2;
   answer = answer * 0.3937;
 
   return answer;
@@ -421,28 +533,28 @@ int distanceInInches(int trigPin,int echoPin){
 
 //-----------------------------------------------------------------------
 /**
- * Displays the distance to the Serial Monitor
- * 
- * Display Speed @ 3cm    ~= 15ms         | Because of speed of
- * Display Speed @ 220cm  ~= 70ms         | sound 
- */
-void displayDistance(int trigPin, int echoPin, String s){
+   Displays the distance to the Serial Monitor
+
+   Display Speed @ 3cm    ~= 15ms         | Because of speed of
+   Display Speed @ 220cm  ~= 70ms         | sound
+*/
+void displayDistance(int trigPin, int echoPin, String s) {
   int answer;
-  for(int i = 1; i < 6; i++){
+  for (int i = 1; i < 6; i++) {
     answer = distanceInInches(trigPin, echoPin);
 
     // average out 5 readings to get a more accurate read
-    if( i == 1 ){
-      one = answer; 
-    } else if( i == 2 ){
+    if ( i == 1 ) {
+      one = answer;
+    } else if ( i == 2 ) {
       two = answer;
-    } else if( i == 3 ){
+    } else if ( i == 3 ) {
       three = answer;
-    } else if( i == 4 ){
+    } else if ( i == 4 ) {
       four = answer;
-    } else{
+    } else {
       five = answer;
-      average = (one+two+three+four+five)/5;    // average of last five pulses
+      average = (one + two + three + four + five) / 5; // average of last five pulses
       Serial.print(s);
       Serial.print(average);
       Serial.println(" in ");
@@ -454,9 +566,9 @@ void displayDistance(int trigPin, int echoPin, String s){
 //-------------------------LINE--SEPERATOR--FOR--TESTING-----------------
 //-----------------------------------------------------------------------
 /**
- * prints a seperator of lines to the Serial Monitor
- */
-void printSeperator(){
+   prints a seperator of lines to the Serial Monitor
+*/
+void printSeperator() {
   Serial.println("--------------------------------------");
 }
 
