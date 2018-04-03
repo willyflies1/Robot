@@ -56,7 +56,7 @@
 #define segDp     50
 
 /* VARIABLES */
-#define LOOPTIME        10                     // PID loop time
+#define LOOPTIME        30                     // PID loop time
 
 unsigned long lastMilli = 0;                    // loop timing 
 unsigned long lastMilliPrint = 0;               // loop timing
@@ -70,7 +70,7 @@ volatile long count_rh = 0;                        // rev counter
 volatile long count_lh = 0;
 volatile long count_tot_rh = 0;
 volatile long count_tot_lh = 0;
-float Kp =   .5;                                // PID proportional control Gain
+float Kp =   .8;                                // PID proportional control Gain
 float Kd =    .25;                                // PID Derivitave control gain
 
 int button_state = 0;
@@ -168,17 +168,31 @@ void loop(){
 
   //-------------------------------------------------------------------------
   //------------------------------TEST--TURNAROUND---------------------------
-  Serial.println("---------------TESTING--TURNAROUND--------------");
+//  Serial.println("---------------TESTING--TURNAROUND--------------");
+//
+//  turnAround();
+//
+//  /* WAIT FOR START BUTTON */
+//  while(button_state != HIGH){
+//    button_state = digitalRead(button);
+//  }
+//  button_state = LOW;
 
-  turnAround();
+  //-------------------------------------------------------------------------
+  //------------------------------TEST--TURNAROUND---------------------------
+  Serial.println("---------------TESTING--TURN--------------");
+  Serial.println("turning right");
+  turn("right");
+  delay(1000);
+  Serial.println("turning left");
+  turn("left");
+  delay(1000);
 
   /* WAIT FOR START BUTTON */
   while(button_state != HIGH){
     button_state = digitalRead(button);
   }
   button_state = LOW;
-
-  //-------------------------------------------------------------------------
 }
 
 /*****************************************************************************************************/
@@ -193,7 +207,7 @@ int updatePid(int command, int targetValue, int currentValue)   {             //
   error = abs(targetValue) - abs(currentValue); 
   pidTerm = (Kp * error) + (Kd * (error - last_error));                            
   last_error = error;
- return constrain(command + int(pidTerm), 0, 120);                            // constrain from 0-255 to => 0-200
+ return constrain(command + int(pidTerm), 0, 200);                            // constrain from 0-255 to => 0-200
 }
 
 /*****************************************************************************************************/
@@ -328,28 +342,68 @@ void LH_ENCODER(){
     count_tot_rh = 0;
   }
 
+  /*
+   * turns the robot 90 degrees in the direction indicated
+   */
+  void turn(String direction){
+    if(direction == "left"){
+      reverse_lh();
+      forward_rh();
+    } else if(direction == "right"){
+      forward_lh();
+      reverse_rh();
+    }
+
+    speed_req = 30;
+    // 90* turn
+    while(count_tot_rh < 660 && count_tot_lh < 660){
+      if((millis()-lastMilli) >= LOOPTIME)   {                                    // enter tmed loop
+        lastMilli = millis();
+        getMotorData();                                                           // calculate speed, volts and Amps
+        PWM_val_rh = updatePid(PWM_val_rh, speed_req, speed_act_rh);                        // compute PWM value
+        PWM_val_lh = updatePid(PWM_val_lh, speed_req, speed_act_lh);
+        analogWrite(enA_rh, PWM_val_rh); 
+        analogWrite(enB_lh, PWM_val_lh);// send PWM to motor
+      }
+    }
+    speed_req = 50;
+    brake_lh();
+    brake_rh();
+    delay(100);
+    Serial.print("count_tot_lh: ");     Serial.println(count_tot_lh);
+    Serial.print("count_tot_rh: ");     Serial.println(count_tot_rh);
+    count_tot_rh = 0;
+    count_tot_lh = 0;
+  }
+
+  
+  /*
+   * Turns the robot around 180 degrees clockwise
+   */
   void turnAround(){
     brake_lh();                                                               // make sure robot is at stop
     brake_rh();
     delay(100);
     reverse_rh();                                                             // turn 180 degrees to the right
     forward_lh();
-    
+    speed_req = 30;
     // 180* turn
-    while(count_tot_rh < 1320){
-    if((millis()-lastMilli) >= LOOPTIME)   {                                    // enter tmed loop
-      lastMilli = millis();
-      getMotorData();                                                           // calculate speed, volts and Amps
-      PWM_val_rh = updatePid(PWM_val_rh, speed_req, speed_act_rh);                        // compute PWM value
-      PWM_val_lh = updatePid(PWM_val_lh, speed_req, speed_act_lh);
-      
-      analogWrite(enA_rh, PWM_val_rh); 
-      analogWrite(enB_lh, PWM_val_lh);// send PWM to motor
+    while(count_tot_rh < 1320 && count_tot_lh < 1320){
+      if((millis()-lastMilli) >= LOOPTIME)   {                                    // enter tmed loop
+        lastMilli = millis();
+        getMotorData();                                                           // calculate speed, volts and Amps
+        PWM_val_rh = updatePid(PWM_val_rh, speed_req, speed_act_rh);                        // compute PWM value
+        PWM_val_lh = updatePid(PWM_val_lh, speed_req, speed_act_lh);
+        analogWrite(enA_rh, PWM_val_rh); 
+        analogWrite(enB_lh, PWM_val_lh);// send PWM to motor
+      }
     }
-    }
+    speed_req = 50;
     brake_lh();
     brake_rh();
     delay(100);
+    Serial.print("count_tot_lh: ");     Serial.println(count_tot_lh);
+    Serial.print("count_tot_rh: ");     Serial.println(count_tot_rh);
     count_tot_rh = 0;
     count_tot_lh = 0;
   }
