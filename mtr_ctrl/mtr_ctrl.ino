@@ -60,7 +60,7 @@
 
 unsigned long lastMilli = 0;                    // loop timing 
 unsigned long lastMilliPrint = 0;               // loop timing
-int speed_req = 75;                             // speed (Set Point)
+int speed_req = 50;                             // speed (Set Point)
 int speed_act_rh = 0;                              // speed (actual value)
 int speed_act_lh = 0;
 int PWM_val_rh = 0;                                // (25% = 64; 50% = 127; 75% = 191; 100% = 255)
@@ -130,7 +130,7 @@ void setup() {
   pinMode(segDp, OUTPUT);
 
   // SERIAL DATA
-  Serial.begin(115600);
+  Serial.begin(9600);
 
   
   forward_rh();
@@ -143,55 +143,42 @@ void loop(){
   while(button_state != HIGH){
     button_state = digitalRead(button);
   }
+  button_state = LOW;
 
-  //getparam();
+//  //------------------------------TEST--FORWARD--FUNCTION--------------------
+//  Serial.println("---------------TESTING--FORWARD-----------------");
+//  forward(11.75);
+//  
+//  /* WAIT FOR START BUTTON */
+//  while(button_state != HIGH){
+//    button_state = digitalRead(button);
+//  }
+//  button_state = LOW;
+//  //-------------------------------------------------------------------------
+//  //-----------------------------TEST--REVERSE--FUNCTION---------------------
+//  Serial.println("---------------TESTING--REVERSE-----------------");
+//  
+//  reverse(11.75);
+//
+//  /* WAIT FOR START BUTTON */
+//  while(button_state != HIGH){
+//    button_state = digitalRead(button);
+//  }
+//  button_state = LOW;
 
+  //-------------------------------------------------------------------------
+  //------------------------------TEST--TURNAROUND---------------------------
+  Serial.println("---------------TESTING--TURNAROUND--------------");
 
-  // GO SET DISTANCE pi*d = circ = distance/revolution ==> 3.75" * pi = 11.77"
-  while(count_tot_rh < 663){
-  if((millis()-lastMilli) >= LOOPTIME)   {                                    // enter tmed loop
-    lastMilli = millis();
-    getMotorData();                                                           // calculate speed, volts and Amps
-    PWM_val_rh = updatePid(PWM_val_rh, speed_req, speed_act_rh);                        // compute PWM value
-    PWM_val_lh = updatePid(PWM_val_lh, speed_req, speed_act_lh);
-    
-    analogWrite(enA_rh, PWM_val_rh); 
-    analogWrite(enB_lh, PWM_val_lh);// send PWM to motor
+  turnAround();
+
+  /* WAIT FOR START BUTTON */
+  while(button_state != HIGH){
+    button_state = digitalRead(button);
   }
-  }
-  brake_lh();
-  brake_rh();
-  count_tot_rh = 0;
-  count_tot_lh = 0;
-  
-  delay(1000);
+  button_state = LOW;
 
-  reverse_rh();
-  forward_lh();
-  
-  // 180* turn
-  while(count_tot_rh < 1320){
-  if((millis()-lastMilli) >= LOOPTIME)   {                                    // enter tmed loop
-    lastMilli = millis();
-    getMotorData();                                                           // calculate speed, volts and Amps
-    PWM_val_rh = updatePid(PWM_val_rh, speed_req, speed_act_rh);                        // compute PWM value
-    PWM_val_lh = updatePid(PWM_val_lh, speed_req, speed_act_lh);
-    
-    analogWrite(enA_rh, PWM_val_rh); 
-    analogWrite(enB_lh, PWM_val_lh);// send PWM to motor
-  }
-  }
-  brake_lh();
-  brake_rh();
-  count_tot_rh = 0;
-  count_tot_lh = 0;
-  
-  delay(1000);
-
-  forward_rh();
-  forward_lh();
-  
-//  printMotorInfo();                                                           // display data
+  //-------------------------------------------------------------------------
 }
 
 /*****************************************************************************************************/
@@ -206,7 +193,7 @@ int updatePid(int command, int targetValue, int currentValue)   {             //
   error = abs(targetValue) - abs(currentValue); 
   pidTerm = (Kp * error) + (Kd * (error - last_error));                            
   last_error = error;
- return constrain(command + int(pidTerm), 0, 255);
+ return constrain(command + int(pidTerm), 0, 120);                            // constrain from 0-255 to => 0-200
 }
 
 /*****************************************************************************************************/
@@ -282,10 +269,17 @@ void LH_ENCODER(){
  *  Takes that distance and turns it into ticks for the motor controller
  *  to work with
  */
- void forward(long distance){
-    long x = (distance) / (3.75 * 3.14);                                        // amount of ticks to travel for that distance
-
-    while(count_tot_rh < x){
+ void forward(float distance){
+    float x = (distance * 663) / (3.75 * 3.1416);                                        // amount of ticks to travel for that distance
+    int y = (int) x;
+    brake_lh();
+    brake_rh();
+    delay(100);
+    
+    forward_rh();                                                             // move robot forward
+    forward_lh();
+    
+    while(count_tot_rh < y){
       lastMilli = millis();
       getMotorData();                                                         // calculate speed, volts and Amps
       PWM_val_rh = updatePid(PWM_val_rh, speed_req, speed_act_rh);            // compute PWM value
@@ -294,6 +288,70 @@ void LH_ENCODER(){
       analogWrite(enA_rh, PWM_val_rh); 
       analogWrite(enB_lh, PWM_val_lh);// send PWM to motor
     }
+
+    brake_lh();
+    brake_rh();
+    delay(100);
+    count_tot_lh = 0;                                                         // reset the count for the motors
+    count_tot_rh = 0;
+  }
+
+  /*
+   *  Moves the robot reverse for 'x' amount of distance in inches. 
+   *  Takes that distance and turns it into ticks for the motor controller
+   *  to work with
+   */
+  void reverse(float distance){
+    float x = (distance * 663) / (3.75 * 3.1416);                                        // amount of ticks to travel for that distance
+    int y = (int) x;
+    brake_lh();
+    brake_rh();
+    delay(100);
+    
+    reverse_lh();                                                             // move robot forward
+    reverse_rh();
+    
+    while(count_tot_rh < y){
+      lastMilli = millis();
+      getMotorData();                                                         // calculate speed, volts and Amps
+      PWM_val_rh = updatePid(PWM_val_rh, speed_req, speed_act_rh);            // compute PWM value
+      PWM_val_lh = updatePid(PWM_val_lh, speed_req, speed_act_lh);
+      
+      analogWrite(enA_rh, PWM_val_rh); 
+      analogWrite(enB_lh, PWM_val_lh);// send PWM to motor
+    }
+
+    brake_lh();
+    brake_rh();
+    delay(100);
+    count_tot_lh = 0;                                                         // reset the count for the motors
+    count_tot_rh = 0;
+  }
+
+  void turnAround(){
+    brake_lh();                                                               // make sure robot is at stop
+    brake_rh();
+    delay(100);
+    reverse_rh();                                                             // turn 180 degrees to the right
+    forward_lh();
+    
+    // 180* turn
+    while(count_tot_rh < 1320){
+    if((millis()-lastMilli) >= LOOPTIME)   {                                    // enter tmed loop
+      lastMilli = millis();
+      getMotorData();                                                           // calculate speed, volts and Amps
+      PWM_val_rh = updatePid(PWM_val_rh, speed_req, speed_act_rh);                        // compute PWM value
+      PWM_val_lh = updatePid(PWM_val_lh, speed_req, speed_act_lh);
+      
+      analogWrite(enA_rh, PWM_val_rh); 
+      analogWrite(enB_lh, PWM_val_lh);// send PWM to motor
+    }
+    }
+    brake_lh();
+    brake_rh();
+    delay(100);
+    count_tot_rh = 0;
+    count_tot_lh = 0;
   }
 
 
