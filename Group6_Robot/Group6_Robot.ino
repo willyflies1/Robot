@@ -147,9 +147,40 @@ void setup() {
 
 /*** LOOP ***/
 void loop() {
-  // put your main code here, to run repeatedly:
+  /* WAIT FOR START BUTTON */
+  while (button_state != HIGH) {
+    button_state = digitalRead(button);
+  }
+  button_state = LOW;
+
+  // get map from IR
+
+  // turn left||right 90 degrees
+  turn("left");
+  
+  // move forward until 9 inches away from the wall
+  //    =>> this is to keep it from hitting wall
+  forward(9);
+  
+
+  
+  // push button
+  // lower scoop to push button
+  // move into button
+
+  // reverse an inch or 2
+  // raise scoop entirely
+
+  // reverse to start
+
+  // 
+
+
 
 }
+
+
+
 //-----------------------------------------------------------------------
 //-------------------------FUNCTION--DECLARATIONS------------------------
 //-----------------------------------------------------------------------
@@ -369,7 +400,7 @@ void turn(String direction) {
 }
 
 /*
-* Turns the robot around 180 degrees clockwise
+  Turns the robot around 180 degrees clockwise
 */
 void turnAround() {
   brake_lh();                                                               // make sure robot is at stop
