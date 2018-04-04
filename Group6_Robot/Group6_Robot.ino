@@ -25,6 +25,26 @@
 #define rh_echo   49
 
 // MTR_CTRL + ENCODERS
+#define LOOPTIME        10            // PID loop time
+
+unsigned long lastMilli = 0;          // loop timing
+int speed_req = 50;                   // speed (Set Point)
+int speed_act_rh = 0;                 // speed (actual value)
+int speed_act_lh = 0;
+int PWM_val_rh = 0;                   // (25% = 64; 50% = 127; 75% = 191; 100% = 255)
+int PWM_val_lh = 0;
+
+unsigned int pulse_count = 0;
+volatile long count_rh = 0;           // pulse counters
+volatile long count_lh = 0;
+unsigned long count_tot_rh = 0;
+unsigned long count_tot_lh = 0;
+float Kp_rh = .9;                     // PID proportional control Gain
+float Kd_rh = .15;                    // PID Derivitave control gain
+float Kp_lh = .9;
+float Kd_lh = .15;
+
+
 // RH MTR
 #define in1_rh    30
 #define in2_rh    28
@@ -40,6 +60,7 @@
 #define chB_lh    41
 
 // GENERAL I/O
+int button_state = 0;
 #define ir_in     32
 #define button    34
 #define led_out   58
@@ -56,28 +77,15 @@
 #define segDp     50
 
 /* VARIABLES */
-#define LOOPTIME        10                     // PID loop time
-
-unsigned long lastMilli = 0;                    // loop timing
-unsigned long lastMilliPrint = 0;               // loop timing
-int speed_req = 75;                             // speed (Set Point)
-int speed_act_rh = 0;                              // speed (actual value)
-int speed_act_lh = 0;
-int PWM_val_rh = 0;                                // (25% = 64; 50% = 127; 75% = 191; 100% = 255)
-int PWM_val_lh = 0;
-
-volatile long count_rh = 0;                        // rev counter
-volatile long count_lh = 0;
-volatile long count_tot_rh = 0;
-volatile long count_tot_lh = 0;
-float Kp =   .5;                                // PID proportional control Gain
-float Kd =    .25;                                // PID Derivitave control gain
-
 int one, two, three, four, five, average;
 
-int button_state = 0;
-
 void setup() {
+
+  // SERVOS
+  rh_servo.attach(rh_scoop);
+  lh_servo.attach(lh_scoop);
+  rh_servo.write(rh_servo_pos[0]);
+  lh_servo.write(lh_servo_pos[0]);
 
   // BUTTON, LED, IR, & BATTERY INPUT
   pinMode(bat_in, INPUT);
@@ -94,20 +102,20 @@ void setup() {
   pinMode(enB_lh, OUTPUT);
 
   // ENCODERS
-  pinMode(chA_rh, INPUT);
-  pinMode(chB_rh, INPUT);
-  pinMode(chA_lh, INPUT);
-  pinMode(chB_lh, INPUT);
+  pinMode(chA_rh, INPUT_PULLUP);
+  pinMode(chB_rh, INPUT_PULLUP);
+  pinMode(chA_lh, INPUT_PULLUP);
+  pinMode(chB_lh, INPUT_PULLUP);
 
-  /* MOTOR ENCODER PULL-UP SET */
+  // MOTOR ENCODER PULL-UP SET
   digitalWrite(chA_rh, HIGH);
   digitalWrite(chB_rh, HIGH);
   digitalWrite(chA_lh, HIGH);
   digitalWrite(chB_lh, HIGH);
 
-  /* MOTOR ENCODER INTERRUPT DEFINITIONS */
-  //attachInterrupt(chA_rh, RH_ENCODER, FALLING);
-  //attachInterrupt(chA_lh, LH_ENCODER, FALLING);
+  // MOTOR ENCODER INTERRUPT DEFINITIONS
+  attachInterrupt(chA_rh, RH_ENCODER, FALLING);
+  attachInterrupt(chA_lh, LH_ENCODER, FALLING);
 
   // USRF SENSORS
   pinMode(fr_trig, OUTPUT);
@@ -133,50 +141,70 @@ void setup() {
 
   // SERIAL DATA
   Serial.begin(115600);
-
-
-  //forward_rh();                                   // Not sure the reason for initializing the motors to begin moving
-  //forward_lh();                                   // before loop starts???
 }
-
-
-
-/**********************
-       FUNCTIONS
- **********************/
 
 /*** LOOP ***/
 void loop() {
+
   /* WAIT FOR START BUTTON */
   while (button_state != HIGH) {
     button_state = digitalRead(button);
   }
-  button_state = LOW;
+  button_state = 0;
 
-  // get map from IR
+  //DROP SCOOP
+  rh_servo.write(rh_servo_pos[1]);
+  lh_servo.write(lh_servo_pos[1]);
 
-  // turn left||right 90 degrees
-  turn("left");
-  
-  // move forward until 9 inches away from the wall
-  //    =>> this is to keep it from hitting wall
-  forward(9);
-  
-
-  
-  // push button
-  // lower scoop to push button
-  // move into button
-
-  // reverse an inch or 2
-  // raise scoop entirely
-
-  // reverse to start
-
-  // 
+  //FWD 30"
+  FWD_REV_distance(30, 0);
 
 
 
+  /* WAIT FOR START BUTTON */
+  while (button_state != HIGH) {
+    button_state = digitalRead(button);
+  }
+  button_state = 0;
+
+  //REV 30"
+  FWD_REV_distance(30, 1);
+
+  /* WAIT FOR START BUTTON */
+  while (button_state != HIGH) {
+    button_state = digitalRead(button);
+  }
+  button_state = 0;
+
+  //TURN RIGHT 90*
+  TURN(90, 0);
+
+  /* WAIT FOR START BUTTON */
+  while (button_state != HIGH) {
+    button_state = digitalRead(button);
+  }
+  button_state = 0;
+
+  //TURN LEFT 90*
+  TURN(90, 1);
+
+  /* WAIT FOR START BUTTON */
+  while (button_state != HIGH) {
+    button_state = digitalRead(button);
+  }
+  button_state = 0;
+
+  //TURN LEFT 180*
+  TURN(180, 1);
+
+  /* WAIT FOR START BUTTON */
+  while (button_state != HIGH) {
+    button_state = digitalRead(button);
+  }
+  button_state = 0;
+
+  //TURN RIGHT 180*
+  TURN(180, 0);
 }
 
 
@@ -256,8 +284,10 @@ void getparam() {
   }
 }
 //--------------------------------FORWARD--------------------------------
-
-void forwardUntilObject(int inchesAway){
+/*
+   Move forward until object is "inchesAway"
+*/
+void forwardUntilObject(int inchesAway) {
   brake_lh();
   brake_rh();
   delay(100);
@@ -266,7 +296,7 @@ void forwardUntilObject(int inchesAway){
   forward_lh();
 
   while (distance < inchesAway) {
-    distance = distanceInInches(fr_trig, fr_echo);
+    distance = distanceInInches(fr_trig, fr_echo);                          // find distance
     lastMilli = millis();
     getMotorData();                                                         // calculate speed, volts and Amps
     PWM_val_rh = updatePid(PWM_val_rh, speed_req, speed_act_rh);            // compute PWM value
@@ -283,39 +313,49 @@ void forwardUntilObject(int inchesAway){
   count_tot_rh = 0;
 }
 
+//dist input ===> inches
+//dir input ===> 0 = FWD & 1 = REV
+void FWD_REV_distance(int dist, int dir)  {
+  pulse_count = 0;
 
-/*
-    Moves the robot forward for 'x' amount of distance in inches.
-    Takes that distance and turns it into ticks for the motor controller
-    to work with
-*/
-void forward(float distance) {
-  float x = (distance * 663) / (3.75 * 3.1416);                                        // amount of ticks to travel for that distance
-  int y = (int) x;
-  brake_lh();
-  brake_rh();
-  delay(100);
+  pulse_count = (dist * 663) / 9.8; // 663 pulses/rev approx 9.8"/rev
 
-  forward_rh();                                                             // move robot forward
-  forward_lh();
-
-  while (count_tot_rh < y) {
-    lastMilli = millis();
-    getMotorData();                                                         // calculate speed, volts and Amps
-    PWM_val_rh = updatePid(PWM_val_rh, speed_req, speed_act_rh);            // compute PWM value
-    PWM_val_lh = updatePid(PWM_val_lh, speed_req, speed_act_lh);
-
-    analogWrite(enA_rh, PWM_val_rh);
-    analogWrite(enB_lh, PWM_val_lh);// send PWM to motor
+  //set motor direction
+  if (dir == 0) {
+    forward_rh();
+    forward_lh();
+  }
+  else if (dir == 1) {
+    reverse_rh();
+    reverse_lh();
   }
 
+  // GO SET DISTANCE pi*d = circ = distance/revolution ==> 3.18" * pi = 9.99"
+  // 2000/663 = 3.02 rev * 9.99" = 30" distance traveled
+  while (count_tot_rh < pulse_count && count_tot_lh < pulse_count) {
+    // enter tmed loop
+    if ((millis() - lastMilli) >= LOOPTIME)   {
+      lastMilli = millis();
+
+      // calculate speed of motors
+      getMotorData();
+      // compute PWM value
+      PWM_val_rh = updatePid(PWM_val_rh, speed_req, speed_act_rh, Kp_rh, Kd_rh);
+      PWM_val_lh = updatePid(PWM_val_lh, speed_req, speed_act_lh, Kp_lh, Kd_lh);
+
+      // send PWM to motor
+      analogWrite(enA_rh, PWM_val_rh);
+      analogWrite(enB_lh, PWM_val_lh);
+    }
+  }
+  //stop motors
   brake_lh();
   brake_rh();
-  delay(100);
-  count_tot_lh = 0;                                                         // reset the count for the motors
-  count_tot_rh = 0;
-}
 
+  //reset pulse counter
+  count_tot_rh = 0;
+  count_tot_lh = 0;
+}
 
 /*
    Right motor forward
@@ -340,21 +380,18 @@ void forward_lh() {
 //--------------------------------REVERSE--------------------------------
 
 /*
-      Moves the robot reverse for 'x' amount of distance in inches.
-      Takes that distance and turns it into ticks for the motor controller
-      to work with
+   Move backwards until "inchesAway" from object
 */
-void reverse(float distance) {
-  float x = (distance * 663) / (3.75 * 3.1416);                                        // amount of ticks to travel for that distance
-  int y = (int) x;
+void reverseUntilObject(int inchesAway) {
   brake_lh();
   brake_rh();
   delay(100);
-
+  int distance = 0;                                                         // initialize distance to check
   reverse_lh();                                                             // move robot forward
   reverse_rh();
 
-  while (count_tot_rh < y) {
+  while (distance < inchesAway) {
+    distance = distanceInInches(fr_trig, fr_echo);                          // find distance
     lastMilli = millis();
     getMotorData();                                                         // calculate speed, volts and Amps
     PWM_val_rh = updatePid(PWM_val_rh, speed_req, speed_act_rh);            // compute PWM value
@@ -396,64 +433,48 @@ void reverse_rh() {
 /*
      turns the robot 90 degrees in the direction indicated
 */
-void turn(String direction) {
-  if (direction == "left") {
+//dir input ===> 0 = RIGHT & 1 = LEFT
+//deg input ===> 180 or 90 input
+void TURN(int deg, int dir)  {
+
+  //set direction of motors for turn
+  //TURN RIGHT
+  if (dir == 0) {
+    reverse_rh();
+    forward_lh();
+  }
+  //TURN LEFT
+  else if (dir == 1) {
     reverse_lh();
     forward_rh();
-  } else if (direction == "right") {
-    forward_lh();
-    reverse_rh();
   }
 
-  speed_req = 30;
-  // 90* turn
-  while (count_tot_rh < 660 && count_tot_lh < 660) {
-    if ((millis() - lastMilli) >= LOOPTIME)   {                                 // enter tmed loop
-      lastMilli = millis();
-      getMotorData();                                                           // calculate speed, volts and Amps
-      PWM_val_rh = updatePid(PWM_val_rh, speed_req, speed_act_rh);                        // compute PWM value
-      PWM_val_lh = updatePid(PWM_val_lh, speed_req, speed_act_lh);
-      analogWrite(enA_rh, PWM_val_rh);
-      analogWrite(enB_lh, PWM_val_lh);// send PWM to motor
-    }
+  //set pulse count for turn
+  if (deg == 90) {
+    pulse_count = 683;
   }
-  speed_req = 50;
-  brake_lh();
-  brake_rh();
-  delay(100);
-  Serial.print("count_tot_lh: ");     Serial.println(count_tot_lh);
-  Serial.print("count_tot_rh: ");     Serial.println(count_tot_rh);
-  count_tot_rh = 0;
-  count_tot_lh = 0;
-}
+  else if (deg == 180) {
+    pulse_count = 1290;
+  }
 
-/*
-  Turns the robot around 180 degrees clockwise
-*/
-void turnAround() {
-  brake_lh();                                                               // make sure robot is at stop
-  brake_rh();
-  delay(100);
-  reverse_rh();                                                             // turn 180 degrees to the right
-  forward_lh();
-  speed_req = 30;
-  // 180* turn
-  while (count_tot_rh < 1320 && count_tot_lh < 1320) {
-    if ((millis() - lastMilli) >= LOOPTIME)   {                                 // enter tmed loop
+  while (count_tot_rh < pulse_count && count_tot_lh < pulse_count) {
+    // enter tmed loop
+    if ((millis() - lastMilli) >= LOOPTIME)   {
       lastMilli = millis();
-      getMotorData();                                                           // calculate speed, volts and Amps
-      PWM_val_rh = updatePid(PWM_val_rh, speed_req, speed_act_rh);                        // compute PWM value
-      PWM_val_lh = updatePid(PWM_val_lh, speed_req, speed_act_lh);
+
+      // calculate speed of motors
+      getMotorData();
+      // compute PWM value
+      PWM_val_rh = updatePid(PWM_val_rh, speed_req, speed_act_rh, Kp_rh, Kd_rh);
+      PWM_val_lh = updatePid(PWM_val_lh, speed_req, speed_act_lh, Kp_lh, Kd_lh);
+
+      // send PWM to motor
       analogWrite(enA_rh, PWM_val_rh);
-      analogWrite(enB_lh, PWM_val_lh);// send PWM to motor
+      analogWrite(enB_lh, PWM_val_lh);
     }
   }
-  speed_req = 50;
   brake_lh();
   brake_rh();
-  delay(100);
-  Serial.print("count_tot_lh: ");     Serial.println(count_tot_lh);
-  Serial.print("count_tot_rh: ");     Serial.println(count_tot_rh);
   count_tot_rh = 0;
   count_tot_lh = 0;
 }
@@ -542,8 +563,7 @@ void logging(String type, String message) {
 */
 int distanceInCm(int trigPin, int echoPin) {
   int duration, answer;
-  //  pinMode(trigPin, OUTPUT);
-  //  pinMode(echoPin, INPUT);
+
   // reset the sensor
   digitalWrite(trigPin, LOW);
   delayMicroseconds(2);
@@ -571,8 +591,6 @@ int distanceInCm(int trigPin, int echoPin) {
 */
 int distanceInInches(int trigPin, int echoPin) {
   int duration, answer;
-  //  pinMode(trigPin, OUTPUT);
-  //  pinMode(echoPin, INPUT);
   // reset the sensor
   digitalWrite(trigPin, LOW);
   delayMicroseconds(2);
