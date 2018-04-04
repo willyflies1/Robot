@@ -256,6 +256,34 @@ void getparam() {
   }
 }
 //--------------------------------FORWARD--------------------------------
+
+void forwardUntilObject(int inchesAway){
+  brake_lh();
+  brake_rh();
+  delay(100);
+  int distance = 0;                                                         // initialize distance to check
+  forward_rh();                                                             // move robot forward
+  forward_lh();
+
+  while (distance < inchesAway) {
+    distance = distanceInInches(fr_trig, fr_echo);
+    lastMilli = millis();
+    getMotorData();                                                         // calculate speed, volts and Amps
+    PWM_val_rh = updatePid(PWM_val_rh, speed_req, speed_act_rh);            // compute PWM value
+    PWM_val_lh = updatePid(PWM_val_lh, speed_req, speed_act_lh);
+
+    analogWrite(enA_rh, PWM_val_rh);
+    analogWrite(enB_lh, PWM_val_lh);// send PWM to motor
+  }
+
+  brake_lh();
+  brake_rh();
+  delay(100);
+  count_tot_lh = 0;                                                         // reset the count for the motors
+  count_tot_rh = 0;
+}
+
+
 /*
     Moves the robot forward for 'x' amount of distance in inches.
     Takes that distance and turns it into ticks for the motor controller
