@@ -1,18 +1,19 @@
+#include <Servo.h>
+
 // SERVOS
 #define lh_scoop  10
 #define rh_scoop  9
 #define flag_r    8
 #define flag_p    7
 
-// RGB SENSOR
-/*
-  #define rgb_led   14
-  #define XXX
-  #define XXXX
-  #define XXXXX
-  #define XXXXXX
-  #define XXXXXXX
-*/
+Servo rh_servo;
+Servo lh_servo;
+Servo flag_servo;
+Servo pos_servo;
+
+int rh_servo_pos[3] = {2, 85, 50};    // SCOOP INITIALIZED (UP[0] ==> RH: 2 LH: 174 
+int lh_servo_pos[3] = {174, 91, 126}; // DWN[1] ==> RH: 85 LH: 91 BTN[2] ==> RH: 50 LH: 126)
+
 
 // USRF SENSORS
 #define fr_trig   23
@@ -232,16 +233,17 @@ void LH_ENCODER() {
 
 //------------------------------UPDATE--PID------------------------------
 
-
-int updatePid(int command, int targetValue, int currentValue)   {             // compute PWM value
-  float pidTerm = 0;                                                            // PID correction
-  int error = 0;
-  static int last_error = 0;
-
-  error = abs(targetValue) - abs(currentValue);
-  pidTerm = (Kp * error) + (Kd * (error - last_error));
+// compute PWM value
+int updatePid(int command, int targetValue, int currentValue, float Kp, float Kd)   {             
+  // PID correction
+  float pidTerm = 0;                                                            
+  int error=0;                                  
+  static int last_error=0;                             
+    
+  error = abs(targetValue) - abs(currentValue); 
+  pidTerm = (Kp * error) + (Kd * (error - last_error));                            
   last_error = error;
-  return constrain(command + int(pidTerm), 0, 200);
+return constrain(command + int(pidTerm), 0, 255);
 }
 
 //----------------------------GET--MOTOR--DATA---------------------------
